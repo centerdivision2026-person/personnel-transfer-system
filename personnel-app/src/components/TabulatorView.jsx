@@ -55,6 +55,11 @@ export default function TabulatorView({ positions, updatePosition, deletePositio
   useEffect(() => {
     if (!elRef.current) return
 
+    // build unique ranks from actual data
+    const uniqueRanks = [...new Set(positions.map(p => p.rank_req).filter(Boolean))].sort()
+    const rankFilterValues = { '': '— ทั้งหมด —', ...Object.fromEntries(uniqueRanks.map(r => [r, r])) }
+    const rankEditorValues = uniqueRanks
+
     const table = new Tabulator(elRef.current, {
       data: positions.map(p => ({ ...p })),
       height: '100%',
@@ -94,9 +99,9 @@ export default function TabulatorView({ positions, updatePosition, deletePositio
         {
           title: 'อัตรา', field: 'rank_req', width: 90,
           editor: 'list',
-          editorParams: { values: RANK_LIST, autocomplete: true, listOnEmpty: true, freetext: true },
+          editorParams: { values: rankEditorValues, autocomplete: true, listOnEmpty: true, freetext: true },
           headerFilter: 'list',
-          headerFilterParams: { values: { '': '— ทั้งหมด —', ...Object.fromEntries(RANK_LIST.map(r => [r, r])) } },
+          headerFilterParams: { values: rankFilterValues },
         },
         { title: 'ชื่อ-สกุล',   field: 'name',       width: 190, editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'ค้นหา...' },
         { title: 'เลขประจำตัว', field: 'person_id',  width: 115, editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'ค้นหา...' },
