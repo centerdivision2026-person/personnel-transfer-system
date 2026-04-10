@@ -55,10 +55,11 @@ export default function TabulatorView({ positions, updatePosition, deletePositio
   useEffect(() => {
     if (!elRef.current) return
 
-    // build unique ranks from actual data
-    const uniqueRanks = [...new Set(positions.map(p => p.rank_req).filter(Boolean))].sort()
-    const rankFilterValues = { '': '— ทั้งหมด —', ...Object.fromEntries(uniqueRanks.map(r => [r, r])) }
-    const rankEditorValues = uniqueRanks
+    // build unique ranks: RANK_LIST (all branches) + any extra from data
+    const dataRanks = positions.map(p => p.rank_req).filter(Boolean)
+    const allRanks = [...new Set([...RANK_LIST, ...dataRanks])]
+    const rankFilterValues = { '': '— ทั้งหมด —', ...Object.fromEntries(allRanks.map(r => [r, r])) }
+    const rankEditorValues = allRanks
 
     const table = new Tabulator(elRef.current, {
       data: positions.map(p => ({ ...p })),
