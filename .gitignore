@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.claude/
+*.pdf
+temp_utf8.txt
