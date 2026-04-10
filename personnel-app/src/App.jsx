@@ -485,6 +485,242 @@ function VacantSuggestions({ pos, conditions, positions, transferMap, onAssign, 
 }
 
 // ══════════════════════════════════════════════════════
+//  DATABASE TABLE VIEW (CRUD)
+// ══════════════════════════════════════════════════════
+const DB_COLS = [
+  { key: 'id',             label: '#',           w: 45 },
+  { key: 'pos_code',       label: 'รหัสตำแหน่ง', w: 110 },
+  { key: 'position',       label: 'หน่วย/ตำแหน่ง', w: 200 },
+  { key: 'rank_req',       label: 'อัตรา',       w: 75,  type: 'rank' },
+  { key: 'name',           label: 'ชื่อ-สกุล',   w: 170 },
+  { key: 'person_id',      label: 'เลขประจำตัว', w: 100 },
+  { key: 'status',         label: 'สถานะ',       w: 80,  type: 'status' },
+  { key: 'branch',         label: 'สาย',         w: 55 },
+  { key: 'corps',          label: 'เหล่า',       w: 60 },
+  { key: 'origin',         label: 'กำเนิด',      w: 80 },
+  { key: 'education',      label: 'คุณวุฒิ',     w: 140, type: 'edu' },
+  { key: 'study_field',    label: 'สาขาวิชา',    w: 130, type: 'study' },
+  { key: 'level',          label: 'ระดับ',        w: 55 },
+  { key: 'entry_be',       label: 'ปีบรรจุ',     w: 70,  num: true },
+  { key: 'birth_be',       label: 'ปีเกิด',      w: 65,  num: true },
+  { key: 'lcht_main',      label: 'ลชท.',        w: 55,  num: true },
+  { key: 'years_service',  label: 'อายุงาน',     w: 65,  num: true },
+  { key: 'years_in_rank',  label: 'อายุยศ',      w: 60,  num: true },
+]
+
+function DataTableView({ positions, updatePosition, deletePosition, addPosition, resetData }) {
+  const [search,   setSearch]   = useState('')
+  const [sortCol,  setSortCol]  = useState('id')
+  const [sortDir,  setSortDir]  = useState('asc')
+  const [editCell, setEditCell] = useState(null) // { _id, field }
+  const [editVal,  setEditVal]  = useState('')
+  const [showAdd,  setShowAdd]  = useState(false)
+  const [newRow,   setNewRow]   = useState({})
+
+  const filtered = useMemo(() => {
+    let result = positions
+    if (search) {
+      const q = search.toLowerCase()
+      result = result.filter(r =>
+        Object.values(r).some(v => String(v ?? '').toLowerCase().includes(q))
+      )
+    }
+    return [...result].sort((a, b) => {
+      let va = a[sortCol] ?? '', vb = b[sortCol] ?? ''
+      if (typeof va === 'number' || typeof vb === 'number')
+        return sortDir === 'asc' ? (Number(va)||0) - (Number(vb)||0) : (Number(vb)||0) - (Number(va)||0)
+      return sortDir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va))
+    })
+  }, [positions, search, sortCol, sortDir])
+
+  const toggleSort = col => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortCol(col); setSortDir('asc') }
+  }
+
+  const startEdit = (_id, field, val) => { setEditCell({ _id, field }); setEditVal(val ?? '') }
+  const cancelEdit = () => setEditCell(null)
+  const saveEdit = () => {
+    if (!editCell) return
+    let val = editVal
+    const col = DB_COLS.find(c => c.key === editCell.field)
+    if (col?.num) { const n = Number(val); if (!isNaN(n) && val !== '') val = n; else if (val === '') val = null }
+    updatePosition(editCell._id, { [editCell.field]: val })
+    setEditCell(null)
+  }
+  const handleKey = e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit() }
+
+  const exportAll = () => {
+    const hdr = DB_COLS.map(c => c.label)
+    const rows = filtered.map(r => DB_COLS.map(c => `"${r[c.key] ?? ''}"`))
+    const csv = [hdr.map(h => `"${h}"`).join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ฐานข้อมูลตำแหน่ง.csv'; a.click()
+  }
+
+  const handleAdd = () => {
+    if (!newRow.pos_code) { alert('กรุณากรอกรหัสตำแหน่ง'); return }
+    addPosition({
+      id: positions.length + 1,
+      ...Object.fromEntries(DB_COLS.filter(c => c.key !== 'id').map(c => [c.key, c.num && newRow[c.key] ? Number(newRow[c.key]) : (newRow[c.key] || '')])),
+      status: newRow.status || '0',
+    })
+    setNewRow({}); setShowAdd(false)
+  }
+
+  // ── render cell editor ─────────────────
+  const renderEditor = (col) => {
+    const props = { className: 'db-edit-inp', value: editVal, autoFocus: true, onBlur: saveEdit }
+    if (col.type === 'status')
+      return <select {...props} onChange={e => setEditVal(e.target.value)}>
+        <option value="0">ว่าง</option><option value="1">บรรจุจริง</option><option value="3">ปิด</option>
+      </select>
+    if (col.type === 'rank')
+      return <select {...props} onChange={e => setEditVal(e.target.value)}>
+        <option value="">—</option>{RANK_LIST.map(r => <option key={r} value={r}>{r}</option>)}
+      </select>
+    if (col.type === 'edu')
+      return <select {...props} onChange={e => setEditVal(e.target.value)}>
+        <option value="">—</option>{EDU_LIST.map(r => <option key={r} value={r}>{r}</option>)}
+      </select>
+    if (col.type === 'study')
+      return <select {...props} onChange={e => setEditVal(e.target.value)}>
+        <option value="">—</option>{STUDY_FIELDS.map(r => <option key={r} value={r}>{r}</option>)}
+        <option value="__custom">พิมพ์เอง...</option>
+      </select>
+    return <input {...props} onChange={e => setEditVal(e.target.value)} onKeyDown={handleKey} />
+  }
+
+  // ── render cell for Add modal ─────────────────
+  const renderAddField = (col) => {
+    const val = newRow[col.key] || ''
+    const onChange = e => setNewRow(p => ({ ...p, [col.key]: e.target.value }))
+    if (col.type === 'status')
+      return <select className="inp" value={val || '0'} onChange={onChange}>
+        <option value="0">ว่าง</option><option value="1">บรรจุจริง</option><option value="3">ปิด</option>
+      </select>
+    if (col.type === 'rank')
+      return <select className="inp" value={val} onChange={onChange}>
+        <option value="">—</option>{RANK_LIST.map(r => <option key={r} value={r}>{r}</option>)}
+      </select>
+    if (col.type === 'edu')
+      return <select className="inp" value={val} onChange={onChange}>
+        <option value="">—</option>{EDU_LIST.map(r => <option key={r} value={r}>{r}</option>)}
+      </select>
+    return <input className="inp" value={val} onChange={onChange} placeholder={col.label} />
+  }
+
+  const statusBadge = s => {
+    const info = STATUS_INFO[s] || { label: s || '—', color: '#94a3b8' }
+    return <span className="db-status-badge" style={{ '--sc': info.color }}>{info.label}</span>
+  }
+
+  return (
+    <div className="db-container">
+      {/* Toolbar */}
+      <div className="db-toolbar">
+        <div className="db-toolbar-left">
+          <div className="search-wrap" style={{ width: 280 }}>
+            <input placeholder="ค้นหา ชื่อ, รหัส, หน่วย, อัตรา..." value={search}
+              onChange={e => setSearch(e.target.value)} className="inp" />
+            <span className="search-ico">🔍</span>
+          </div>
+          <span className="db-count">
+            แสดง <strong>{filtered.length}</strong> / {positions.length} ตำแหน่ง
+          </span>
+        </div>
+        <div className="db-toolbar-right">
+          <button className="btn btn-primary btn-sm" onClick={() => { setNewRow({}); setShowAdd(true) }}>
+            ➕ เพิ่มตำแหน่ง
+          </button>
+          <button className="btn btn-sec btn-sm" style={{ background:'#166534', color:'white', border:'none' }} onClick={exportAll}>
+            📊 ส่งออก CSV
+          </button>
+          <button className="btn btn-danger btn-sm" onClick={resetData}>🔄 รีเซ็ตข้อมูล</button>
+        </div>
+      </div>
+
+      <div className="db-hint">💡 ดับเบิ้ลคลิกเซลล์เพื่อแก้ไข · แก้ไขแล้วกด Enter เพื่อบันทึก · ข้อมูลอัปเดตอัตโนมัติในหน้าปรับย้าย</div>
+
+      {/* Table */}
+      <div className="db-table-wrap">
+        <table className="db-table">
+          <thead>
+            <tr>
+              {DB_COLS.map(col => (
+                <th key={col.key} style={{ minWidth: col.w }}
+                  className={sortCol === col.key ? 'sorted' : ''}
+                  onClick={() => toggleSort(col.key)}>
+                  {col.label}
+                  {sortCol === col.key && <span className="sort-arrow">{sortDir === 'asc' ? ' ▲' : ' ▼'}</span>}
+                </th>
+              ))}
+              <th style={{ width: 44 }}>ลบ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((row, ri) => (
+              <tr key={row._id}
+                className={row.status === '3' ? 'row-closed' : row.status === '0' ? 'row-vacant' : ''}>
+                {DB_COLS.map(col => {
+                  const isEditing = editCell?._id === row._id && editCell?.field === col.key
+                  return (
+                    <td key={col.key}
+                      onDoubleClick={() => startEdit(row._id, col.key, row[col.key])}
+                      className={isEditing ? 'editing' : ''}>
+                      {isEditing
+                        ? renderEditor(col)
+                        : col.key === 'status'
+                          ? statusBadge(row[col.key])
+                          : (row[col.key] ?? '—')
+                      }
+                    </td>
+                  )
+                })}
+                <td>
+                  <button className="db-del-btn" onClick={() => deletePosition(row._id)} title="ลบ">✕</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length === 0 && (
+          <div className="empty" style={{ padding: 40 }}><div>🔍</div>ไม่พบข้อมูลที่ตรงกัน</div>
+        )}
+      </div>
+
+      {/* Add Modal */}
+      {showAdd && (
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowAdd(false) }}>
+          <div className="modal-box">
+            <div className="modal-head">
+              <span>➕ เพิ่มตำแหน่งใหม่</span>
+              <button className="cand-close" onClick={() => setShowAdd(false)}>✕</button>
+            </div>
+            <div style={{ padding: '14px 16px' }}>
+              <div className="rule-grid">
+                {DB_COLS.filter(c => c.key !== 'id').map(col => (
+                  <div key={col.key} style={{ marginBottom: 6 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 2 }}>
+                      {col.label}
+                    </label>
+                    {renderAddField(col)}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14, paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
+                <button className="btn btn-sec" onClick={() => setShowAdd(false)}>ยกเลิก</button>
+                <button className="btn btn-primary" onClick={handleAdd}>💾 เพิ่มตำแหน่ง</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════
 //  ORG CHART — SINGLE POSITION NODE
 // ══════════════════════════════════════════════════════
 function OrgNode({ pos, getPersonForPos, transferMap, positions, conditions,
@@ -682,8 +918,11 @@ function OrgChartView({ filteredGroups, nodeProps }) {
 //  MAIN APP
 // ══════════════════════════════════════════════════════
 export default function App() {
-  const positions = useMemo(() =>
-    rawData.map(r => ({ ...r, _id: `${r.pos_code}_${r.id}` })), [])
+  const [positions, setPositions] = useState(() => {
+    const saved = localStorage.getItem('personnel-positions')
+    const data = saved ? JSON.parse(saved) : rawData
+    return data.map(r => ({ ...r, _id: r._id || `${r.pos_code}_${r.id}` }))
+  })
 
   const [conditions,   setConditions]   = useState(DEFAULT_CONDITIONS)
   const [transfers,    setTransfers]    = useState([])
@@ -705,6 +944,12 @@ export default function App() {
   const [candidatePos, setCandidatePos] = useState(null)
   const [sortType,     setSortType]     = useState('fit')  // 'fit' | 'lcht' | 'service' | 'rank_age' | 'age'
   const [viewMode,     setViewMode]     = useState('board') // 'board' | 'orgchart'
+  const [page,         setPage]         = useState('app')   // 'app' | 'database'
+
+  // persist positions to localStorage
+  useEffect(() => {
+    localStorage.setItem('personnel-positions', JSON.stringify(positions))
+  }, [positions])
 
   // drag
   const [draggingId, setDraggingId] = useState(null)
@@ -920,6 +1165,29 @@ export default function App() {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'แผนปรับย้าย.csv'; a.click()
   }
 
+  // ── CRUD for database table ──────────────────────────────────────────────────
+  const updatePosition = useCallback((_id, updates) => {
+    setPositions(prev => prev.map(p => p._id === _id ? { ...p, ...updates } : p))
+  }, [])
+
+  const deletePosition = useCallback((_id) => {
+    if (!window.confirm('ลบตำแหน่งนี้?')) return
+    setPositions(prev => prev.filter(p => p._id !== _id))
+    setTransfers(prev => prev.filter(t => t.fromId !== _id && t.toId !== _id))
+  }, [])
+
+  const addPosition = useCallback((newPos) => {
+    const _id = `${newPos.pos_code || 'NEW'}_${Date.now()}`
+    setPositions(prev => [...prev, { ...newPos, _id }])
+  }, [])
+
+  const resetData = useCallback(() => {
+    if (!window.confirm('รีเซ็ตข้อมูลทั้งหมดกลับเป็นค่าเริ่มต้น?\nข้อมูลที่แก้ไขจะหายไป')) return
+    setPositions(rawData.map(r => ({ ...r, _id: `${r.pos_code}_${r.id}` })))
+    setTransfers([])
+    localStorage.removeItem('personnel-positions')
+  }, [])
+
   // ══════════════════════════════════════════════════════
   //  RENDER
   // ══════════════════════════════════════════════════════
@@ -946,6 +1214,12 @@ export default function App() {
             <div className="header-sub">กรมยุทธการทหาร · ยก.ทหาร · {new Date().toLocaleDateString('th-TH', { year:'numeric', month:'long', day:'numeric' })}</div>
           </div>
         </div>
+        <div className="header-nav">
+          <button className={`nav-btn ${page === 'app' ? 'active' : ''}`}
+            onClick={() => setPage('app')}>📋 ระบบปรับย้าย</button>
+          <button className={`nav-btn ${page === 'database' ? 'active' : ''}`}
+            onClick={() => setPage('database')}>🗃 ฐานข้อมูล ({positions.length})</button>
+        </div>
         <div className="header-stats">
           {[
             { n: stats.filled,  l: 'บรรจุจริง', c: '#22c55e' },
@@ -963,6 +1237,15 @@ export default function App() {
       </header>
 
       <div className="app-body">
+        {page === 'database' ? (
+          <DataTableView
+            positions={positions}
+            updatePosition={updatePosition}
+            deletePosition={deletePosition}
+            addPosition={addPosition}
+            resetData={resetData}
+          />
+        ) : <>
         {/* ── SIDEBAR ── */}
         <aside className="sidebar">
           <div className="sidebar-tabs">
@@ -1439,6 +1722,7 @@ export default function App() {
             })}
           </div>
         </div>
+        </>}
       </div>
     </div>
   )
