@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import rawData from './data.json'
 import PersonAvatar from './components/PersonAvatar'
+import TabulatorView from './components/TabulatorView'
 import './App.css'
 
 // ══════════════════════════════════════════════════════
@@ -1170,8 +1171,8 @@ export default function App() {
     setPositions(prev => prev.map(p => p._id === _id ? { ...p, ...updates } : p))
   }, [])
 
-  const deletePosition = useCallback((_id) => {
-    if (!window.confirm('ลบตำแหน่งนี้?')) return
+  const deletePosition = useCallback((_id, skipConfirm) => {
+    if (!skipConfirm && !window.confirm('ลบตำแหน่งนี้?')) return
     setPositions(prev => prev.filter(p => p._id !== _id))
     setTransfers(prev => prev.filter(t => t.fromId !== _id && t.toId !== _id))
   }, [])
@@ -1219,6 +1220,8 @@ export default function App() {
             onClick={() => setPage('app')}>📋 ระบบปรับย้าย</button>
           <button className={`nav-btn ${page === 'database' ? 'active' : ''}`}
             onClick={() => setPage('database')}>🗃 ฐานข้อมูล ({positions.length})</button>
+          <button className={`nav-btn ${page === 'tabulator' ? 'active' : ''}`}
+            onClick={() => setPage('tabulator')}>📊 Tabulator</button>
         </div>
         <div className="header-stats">
           {[
@@ -1237,7 +1240,15 @@ export default function App() {
       </header>
 
       <div className="app-body">
-        {page === 'database' ? (
+        {page === 'tabulator' ? (
+          <TabulatorView
+            positions={positions}
+            updatePosition={updatePosition}
+            deletePosition={deletePosition}
+            addPosition={addPosition}
+            resetData={resetData}
+          />
+        ) : page === 'database' ? (
           <DataTableView
             positions={positions}
             updatePosition={updatePosition}

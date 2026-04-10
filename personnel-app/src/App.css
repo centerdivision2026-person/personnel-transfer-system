@@ -1735,3 +1735,105 @@ body {
   color: #dc2626;
 }
 
+/* ══════════════════════════════════════════════════════
+   TABULATOR VIEW
+   ══════════════════════════════════════════════════════ */
+.tabview-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 24px;
+  overflow: hidden;
+}
+.tabview-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tabview-toolbar-left,
+.tabview-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tabview-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+.tabview-toolbar button {
+  padding: 6px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  font-size: .82rem;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tabview-toolbar button:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+.tabview-toolbar button.danger {
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+.tabview-toolbar button.danger:hover {
+  background: #fef2f2;
+}
+.tabview-hint {
+  font-size: .78rem;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+.tabview-table {
+  flex: 1;
+  overflow: auto;
+}
+
+/* Tabulator theme overrides */
+.tabview-table .tabulator {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: .82rem;
+}
+.tabview-table .tabulator .tabulator-header {
+  background: #1e3a5f;
+  color: #fff;
+  border-bottom: 2px solid #15294a;
+}
+.tabview-table .tabulator .tabulator-header .tabulator-col {
+  border-right-color: rgba(255,255,255,.15);
+}
+.tabview-table .tabulator .tabulator-header .tabulator-col-title {
+  color: #fff;
+  font-weight: 600;
+}
+.tabview-table .tabulator .tabulator-header .tabulator-col .tabulator-header-filter input {
+  background: rgba(255,255,255,.9);
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: .75rem;
+}
+.tabview-table .tabulator .tabulator-tableholder .tabulator-table .tabulator-row {
+  border-bottom: 1px solid #f1f5f9;
+}
+.tabview-table .tabulator .tabulator-tableholder .tabulator-table .tabulator-row:hover {
+  background: #f0f7ff;
+}
+.tabview-table .tabulator .tabulator-tableholder .tabulator-table .tabulator-row.tabulator-row-even {
+  background: #f8fafc;
+}
+.tabview-table .tabulator .tabulator-footer {
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+}
+.tabview-table .tabulator .tabulator-footer .tabulator-page.active {
+  background: #1e3a5f;
+  color: #fff;
+}
+

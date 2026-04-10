@@ -1,0 +1,191 @@
+import { useRef, useEffect, useCallback } from 'react'
+import { TabulatorFull as Tabulator } from 'tabulator-tables'
+import 'tabulator-tables/dist/css/tabulator.min.css'
+
+// ── constants (same as App.jsx) ────────────────────────
+const RANK_LIST = [
+  'จ.ส.ต.','จ.ส.ท.','จ.ส.อ.',
+  'ร.ต.','ร.ท.','ร.อ.',
+  'น.ต.','น.ท.','น.อ.',
+  'พ.ต.','พ.ท.','พ.อ.','พ.อ.(พ)',
+  'พล.ต.','พล.ท.','พล.อ.',
+  'พล.ร.ต.','พล.ร.ท.','พล.ร.อ.',
+  'พล.อ.ต.','พล.อ.ท.','พล.อ.อ.',
+]
+
+const EDU_LIST = [
+  'ประกาศนียบัตรวิชาชีพ','ปริญญาตรี','ปริญญาโท','ปริญญาเอก',
+  'หลักสูตรเสนาธิการ','วิทยาลัยป้องกันราชอาณาจักร',
+]
+
+const STUDY_FIELDS = [
+  'คอมพิวเตอร์','เทคโนโลยีสารสนเทศ','วิศวกรรมคอมพิวเตอร์',
+  'บริหารธุรกิจ','การจัดการ','รัฐศาสตร์','รัฐประศาสนศาสตร์',
+  'นิติศาสตร์','เศรษฐศาสตร์','บัญชี','การเงิน',
+  'วิศวกรรมศาสตร์','วิทยาศาสตร์','สังคมศาสตร์',
+  'ภาษาต่างประเทศ','การสื่อสาร','สาธารณสุข',
+]
+
+// ── status formatter ────────────────────────────────────
+function statusFormatter(cell) {
+  const v = cell.getValue()
+  const map = {
+    '1': ['บรรจุจริง', '#22c55e'],
+    '0': ['ว่าง',      '#f59e0b'],
+    '3': ['ปิด',       '#ef4444'],
+  }
+  const [label, color] = map[v] || [v || '—', '#94a3b8']
+  return `<span style="
+    background:${color}18;color:${color};
+    border:1px solid ${color}40;
+    padding:2px 10px;border-radius:12px;
+    font-size:10px;font-weight:700
+  ">${label}</span>`
+}
+
+// ══════════════════════════════════════════════════════════
+//  TABULATOR VIEW
+// ══════════════════════════════════════════════════════════
+export default function TabulatorView({ positions, updatePosition, deletePosition, addPosition, resetData }) {
+  const elRef       = useRef(null)
+  const tableRef    = useRef(null)
+  const skipSync    = useRef(false)
+
+  // ── init Tabulator ────────────────────────────────────
+  useEffect(() => {
+    if (!elRef.current) return
+
+    const table = new Tabulator(elRef.current, {
+      data: positions.map(p => ({ ...p })),
+      height: '100%',
+      layout: 'fitDataFill',
+      responsiveLayout: false,
+      movableColumns: true,
+      clipboard: true,
+      pagination: true,
+      paginationSize: 50,
+      paginationCounter: 'rows',
+      paginationSizeSelector: [20, 50, 100, 200, true],
+      placeholder: '<div style="padding:40px;color:#94a3b8;font-size:14px">🔍 ไม่พบข้อมูล</div>',
+      selectableRows: true,
+      rowHeight: 36,
+
+      columns: [
+        // ── Delete button ──
+        {
+          title: '', field: '_del', width: 42, frozen: true,
+          headerSort: false, hozAlign: 'center', resizable: false,
+          formatter: () => '<span style="color:#ef4444;cursor:pointer;font-size:15px" title="ลบแถวนี้">✕</span>',
+          cellClick: (_e, cell) => {
+            const d = cell.getRow().getData()
+            if (window.confirm(`ลบ "${d.pos_code || d.name || 'ตำแหน่งนี้'}"?`)) {
+              skipSync.current = true
+              cell.getRow().delete()
+              deletePosition(d._id, true)
+              setTimeout(() => { skipSync.current = false }, 100)
+            }
+          },
+        },
+
+        // ── Data columns ──
+        { title: '#',             field: 'id',        width: 48,  editor: false, sorter: 'number' },
+        { title: 'รหัสตำแหน่ง',    field: 'pos_code',  width: 130, editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'ค้นหา...' },
+        { title: 'หน่วย/ตำแหน่ง',  field: 'position',  width: 210, editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'ค้นหา...' },
+        {
+          title: 'อัตรา', field: 'rank_req', width: 90,
+          editor: 'list',
+          editorParams: { values: RANK_LIST, autocomplete: true, listOnEmpty: true, freetext: true },
+          headerFilter: 'list',
+          headerFilterParams: { values: { '': '— ทั้งหมด —', ...Object.fromEntries(RANK_LIST.map(r => [r, r])) } },
+        },
+        { title: 'ชื่อ-สกุล',   field: 'name',       width: 190, editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'ค้นหา...' },
+        { title: 'เลขประจำตัว', field: 'person_id',  width: 115, editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'ค้นหา...' },
+        {
+          title: 'สถานะ', field: 'status', width: 100, hozAlign: 'center',
+          editor: 'list',
+          editorParams: { values: { '1': 'บรรจุจริง', '0': 'ว่าง', '3': 'ปิด' } },
+          headerFilter: 'list',
+          headerFilterParams: { values: { '': '— ทั้งหมด —', '1': 'บรรจุจริง', '0': 'ว่าง', '3': 'ปิด' } },
+          formatter: statusFormatter,
+        },
+        { title: 'สาย',    field: 'branch', width: 60,  editor: 'input', headerFilter: 'input', headerFilterPlaceholder: '...' },
+        { title: 'เหล่า',   field: 'corps',  width: 65,  editor: 'input', headerFilter: 'input', headerFilterPlaceholder: '...' },
+        { title: 'กำเนิด',  field: 'origin', width: 85,  editor: 'input' },
+        {
+          title: 'คุณวุฒิ', field: 'education', width: 160,
+          editor: 'list',
+          editorParams: { values: EDU_LIST, autocomplete: true, listOnEmpty: true, freetext: true },
+          headerFilter: 'input', headerFilterPlaceholder: 'ค้นหา...',
+        },
+        {
+          title: 'สาขาวิชา', field: 'study_field', width: 140,
+          editor: 'list',
+          editorParams: { values: STUDY_FIELDS, autocomplete: true, listOnEmpty: true, freetext: true },
+          headerFilter: 'input', headerFilterPlaceholder: 'ค้นหา...',
+        },
+        { title: 'ระดับ',   field: 'level',          width: 60,  editor: 'input' },
+        { title: 'ปีบรรจุ',  field: 'entry_be',       width: 80,  editor: 'number', hozAlign: 'center', sorter: 'number' },
+        { title: 'ปีเกิด',  field: 'birth_be',       width: 75,  editor: 'number', hozAlign: 'center', sorter: 'number' },
+        { title: 'ลชท.',    field: 'lcht_main',      width: 60,  editor: 'number', hozAlign: 'center', sorter: 'number' },
+        { title: 'อายุงาน', field: 'years_service',  width: 75,  editor: 'number', hozAlign: 'center', sorter: 'number' },
+        { title: 'อายุยศ',  field: 'years_in_rank',  width: 70,  editor: 'number', hozAlign: 'center', sorter: 'number' },
+      ],
+
+      // ── sync edited cell → React state ──
+      cellEdited: (cell) => {
+        skipSync.current = true
+        const row = cell.getRow().getData()
+        updatePosition(row._id, { [cell.getField()]: cell.getValue() })
+        setTimeout(() => { skipSync.current = false }, 100)
+      },
+    })
+
+    tableRef.current = table
+    return () => { table.destroy(); tableRef.current = null }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── sync external changes (e.g. reset) back to table ──
+  useEffect(() => {
+    if (skipSync.current || !tableRef.current) return
+    tableRef.current.replaceData(positions.map(p => ({ ...p })))
+  }, [positions])
+
+  // ── add row ──
+  const handleAdd = useCallback(() => {
+    const newPos = {
+      id: positions.length + 1,
+      pos_code: '', position: '', rank_req: '', name: '',
+      person_id: '', status: '0', branch: '', corps: '',
+      origin: '', education: '', study_field: '', level: '',
+      entry_be: null, birth_be: null, lcht_main: null,
+      years_service: null, years_in_rank: null,
+    }
+    addPosition(newPos)
+  }, [positions.length, addPosition])
+
+  // ── export ──
+  const handleExport = useCallback(() => {
+    tableRef.current?.download('csv', 'ฐานข้อมูลตำแหน่ง.csv', { bom: true })
+  }, [])
+
+  return (
+    <div className="tabview-container">
+      <div className="tabview-toolbar">
+        <div className="tabview-toolbar-left">
+          <span className="tabview-title">📊 Tabulator — แก้ไขข้อมูลได้โดยตรงในแถว</span>
+          <span className="db-count">{positions.length} ตำแหน่ง</span>
+        </div>
+        <div className="tabview-toolbar-right">
+          <button className="btn btn-primary btn-sm" onClick={handleAdd}>➕ เพิ่มแถว</button>
+          <button className="btn btn-sec btn-sm" style={{ background: '#166534', color: 'white', border: 'none' }}
+            onClick={handleExport}>📊 ส่งออก CSV</button>
+          <button className="btn btn-danger btn-sm" onClick={resetData}>🔄 รีเซ็ต</button>
+        </div>
+      </div>
+      <div className="tabview-hint">
+        💡 <strong>คลิกเซลล์</strong>เพื่อแก้ไขทันที · พิมพ์ในช่อง<strong>ตัวกรอง</strong>ที่หัวคอลัมน์ · คลิกหัวคอลัมน์เพื่อ<strong>เรียงลำดับ</strong> · กด <strong>✕</strong> เพื่อลบแถว
+      </div>
+      <div ref={elRef} className="tabview-table" />
+    </div>
+  )
+}
