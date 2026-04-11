@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import rawData from './data.json'
 import PersonAvatar from './components/PersonAvatar'
 import TabulatorView from './components/TabulatorView'
+import * as sheetApi from './services/googleSheetApi'
 import './App.css'
 
 // ══════════════════════════════════════════════════════
@@ -924,6 +925,8 @@ export default function App() {
     const data = saved ? JSON.parse(saved) : rawData
     return data.map(r => ({ ...r, _id: r._id || `${r.pos_code}_${r.id}` }))
   })
+  const [sheetLoading, setSheetLoading] = useState(false)
+  const [sheetError, setSheetError] = useState(null)
 
   const [conditions,   setConditions]   = useState(DEFAULT_CONDITIONS)
   const [transfers,    setTransfers]    = useState([])
@@ -951,6 +954,25 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('personnel-positions', JSON.stringify(positions))
   }, [positions])
+
+  // ── โหลดข้อมูลจาก Google Sheet (ถ้ามี API URL) ──
+  useEffect(() => {
+    if (!sheetApi.isConfigured()) return
+    setSheetLoading(true)
+    setSheetError(null)
+    sheetApi.fetchAll()
+      .then(rows => {
+        if (rows.length > 0) {
+          setPositions(rows.map(r => ({
+            ...r,
+            _id: r._id || `${r.pos_code}_${r.id}`,
+            _row: r._row, // เก็บเลขแถวจาก Sheet
+          })))
+        }
+      })
+      .catch(err => setSheetError(err.message))
+      .finally(() => setSheetLoading(false))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // drag
   const [draggingId, setDraggingId] = useState(null)
@@ -1168,25 +1190,67 @@ export default function App() {
 
   // ── CRUD for database table ──────────────────────────────────────────────────
   const updatePosition = useCallback((_id, updates) => {
-    setPositions(prev => prev.map(p => p._id === _id ? { ...p, ...updates } : p))
+    setPositions(prev => {
+      const pos = prev.find(p => p._id === _id)
+      // sync กับ Google Sheet (fire-and-forget)
+      if (sheetApi.isConfigured() && pos?._row) {
+        sheetApi.updateRow(pos._row, updates).catch(console.error)
+      }
+      return prev.map(p => p._id === _id ? { ...p, ...updates } : p)
+    })
   }, [])
 
   const deletePosition = useCallback((_id, skipConfirm) => {
     if (!skipConfirm && !window.confirm('ลบตำแหน่งนี้?')) return
-    setPositions(prev => prev.filter(p => p._id !== _id))
+    setPositions(prev => {
+      const pos = prev.find(p => p._id === _id)
+      // sync กับ Google Sheet
+      if (sheetApi.isConfigured() && pos?._row) {
+        sheetApi.deleteRow(pos._row).catch(console.error)
+      }
+      return prev.filter(p => p._id !== _id)
+    })
     setTransfers(prev => prev.filter(t => t.fromId !== _id && t.toId !== _id))
   }, [])
 
   const addPosition = useCallback((newPos) => {
     const _id = `${newPos.pos_code || 'NEW'}_${Date.now()}`
     setPositions(prev => [...prev, { ...newPos, _id }])
+    // sync กับ Google Sheet
+    if (sheetApi.isConfigured()) {
+      sheetApi.addRow(newPos).catch(console.error)
+    }
   }, [])
 
   const resetData = useCallback(() => {
     if (!window.confirm('รีเซ็ตข้อมูลทั้งหมดกลับเป็นค่าเริ่มต้น?\nข้อมูลที่แก้ไขจะหายไป')) return
-    setPositions(rawData.map(r => ({ ...r, _id: `${r.pos_code}_${r.id}` })))
+    const resetPositions = rawData.map(r => ({ ...r, _id: `${r.pos_code}_${r.id}` }))
+    setPositions(resetPositions)
     setTransfers([])
     localStorage.removeItem('personnel-positions')
+    // sync กับ Google Sheet
+    if (sheetApi.isConfigured()) {
+      sheetApi.resetSheet(rawData).catch(console.error)
+    }
+  }, [])
+
+  // ── โหลดข้อมูลใหม่จาก Google Sheet ──
+  const reloadFromSheet = useCallback(() => {
+    if (!sheetApi.isConfigured()) return
+    setSheetLoading(true)
+    setSheetError(null)
+    sheetApi.fetchAll()
+      .then(rows => {
+        if (rows.length > 0) {
+          setPositions(rows.map(r => ({
+            ...r,
+            _id: r._id || `${r.pos_code}_${r.id}`,
+            _row: r._row,
+          })))
+        }
+      })
+      .catch(err => setSheetError(err.message))
+      .finally(() => setSheetLoading(false))
   }, [])
 
   // ══════════════════════════════════════════════════════
@@ -1222,7 +1286,18 @@ export default function App() {
             onClick={() => setPage('database')}>🗃 ฐานข้อมูล ({positions.length})</button>
           <button className={`nav-btn ${page === 'tabulator' ? 'active' : ''}`}
             onClick={() => setPage('tabulator')}>📊 Tabulator</button>
+          {sheetApi.isConfigured() && (
+            <button className="nav-btn sheet-sync-btn" onClick={reloadFromSheet}
+              disabled={sheetLoading} title="โหลดข้อมูลใหม่จาก Google Sheet">
+              {sheetLoading ? '⏳' : '🔄'} Sheet
+            </button>
+          )}
         </div>
+        {sheetError && (
+          <div className="sheet-error">⚠️ Sheet: {sheetError}
+            <button onClick={() => setSheetError(null)}>✕</button>
+          </div>
+        )}
         <div className="header-stats">
           {[
             { n: stats.filled,  l: 'บรรจุจริง', c: '#22c55e' },

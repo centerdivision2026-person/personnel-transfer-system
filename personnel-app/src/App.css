@@ -1837,3 +1837,37 @@ body {
   color: #fff;
 }
 
+/* ══════════════════════════════════════════════════════
+   GOOGLE SHEET SYNC
+   ══════════════════════════════════════════════════════ */
+.sheet-sync-btn {
+  background: #059669 !important;
+  color: #fff !important;
+  border-color: #059669 !important;
+  font-size: .78rem !important;
+}
+.sheet-sync-btn:hover {
+  background: #047857 !important;
+}
+.sheet-sync-btn:disabled {
+  opacity: .6;
+  cursor: wait !important;
+}
+.sheet-error {
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: .78rem;
+  padding: 4px 14px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sheet-error button {
+  background: none;
+  border: none;
+  color: #dc2626;
+  cursor: pointer;
+  font-size: .9rem;
+}
+
