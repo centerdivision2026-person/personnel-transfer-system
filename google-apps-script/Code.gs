@@ -16,6 +16,60 @@
 const SHEET_NAME = 'data';
 
 // ══════════════════════════════════════════════════════
+//  SETUP — เรียกครั้งเดียวเพื่อสร้าง header
+// ══════════════════════════════════════════════════════
+function setupHeaders() {
+  const headers = [
+    'id', 'position', 'level', 'rank_req', 'branch',
+    'status', 'status_text', 'pos_code', 'person_id', 'name',
+    'position_detail', 'origin', 'corps', 'education',
+    'lcht_main', 'lcht_gen', 'entry_be', 'years_service',
+    'study_field', 'birth_be', 'years_in_rank'
+  ];
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAME);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME);
+  }
+
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+
+  // ตั้งความกว้างคอลัมน์
+  sheet.setColumnWidth(1, 50);   // id
+  sheet.setColumnWidth(2, 200);  // position
+  sheet.setColumnWidth(3, 50);   // level
+  sheet.setColumnWidth(4, 80);   // rank_req
+  sheet.setColumnWidth(5, 150);  // branch
+  sheet.setColumnWidth(6, 50);   // status
+  sheet.setColumnWidth(7, 100);  // status_text
+  sheet.setColumnWidth(8, 130);  // pos_code
+  sheet.setColumnWidth(9, 130);  // person_id
+  sheet.setColumnWidth(10, 200); // name
+  sheet.setColumnWidth(11, 250); // position_detail
+  sheet.setColumnWidth(12, 100); // origin
+  sheet.setColumnWidth(13, 100); // corps
+  sheet.setColumnWidth(14, 150); // education
+  sheet.setColumnWidth(15, 80);  // lcht_main
+  sheet.setColumnWidth(16, 80);  // lcht_gen
+  sheet.setColumnWidth(17, 80);  // entry_be
+  sheet.setColumnWidth(18, 80);  // years_service
+  sheet.setColumnWidth(19, 150); // study_field
+  sheet.setColumnWidth(20, 80);  // birth_be
+  sheet.setColumnWidth(21, 80);  // years_in_rank
+
+  // ทำให้ header เด่น
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange.setFontWeight('bold');
+  headerRange.setBackground('#4285f4');
+  headerRange.setFontColor('#ffffff');
+  sheet.setFrozenRows(1);
+
+  SpreadsheetApp.getUi().alert('✅ สร้าง header เรียบร้อย! (' + headers.length + ' คอลัมน์)');
+}
+
+// ══════════════════════════════════════════════════════
 //  CORS headers
 // ══════════════════════════════════════════════════════
 function createJsonOutput(data) {
