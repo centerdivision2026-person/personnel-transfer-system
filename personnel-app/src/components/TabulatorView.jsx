@@ -26,6 +26,40 @@ const STUDY_FIELDS = [
   'ภาษาต่างประเทศ','การสื่อสาร','สาธารณสุข',
 ]
 
+// ── rank → salary level mapping ────────────────────────
+const RANK_TO_SALARY = {
+  'ส.อ.': 'ส.3',
+  'จ.ส.ต.': 'ป.1', 'จ.ส.ท.': 'ป.2', 'จ.ส.อ.': 'ป.3', 'จ.ส.อ.(พ)': 'ป.3(พ)',
+  'ร.ต.': 'น.1', 'ร.ท.': 'น.2', 'ร.อ.': 'น.3',
+  'น.ต.': 'น.4', 'น.ท.': 'น.5', 'น.อ.': 'น.6',
+  'พ.ต.': 'น.4', 'พ.ท.': 'น.5', 'พ.อ.': 'น.6',
+  'พ.อ.(พ)': 'น.7',
+  'พล.ต.': 'น.8',  'พล.ร.ต.': 'น.8',  'พล.อ.ต.': 'น.8',
+  'พล.ท.': 'น.9',  'พล.ร.ท.': 'น.9',  'พล.อ.ท.': 'น.9',
+  'พล.อ.': 'น.10', 'พล.ร.อ.': 'น.10', 'พล.อ.อ.': 'น.10',
+  'ประจำ (สัญญาบัตร)': 'ประจำ (น.)',
+  'ประจำ (ประทวน)': 'ประจำ (ป.)',
+}
+
+// reverse: salary level → list of rank_req values
+const SALARY_TO_RANKS = {}
+for (const [rank, sal] of Object.entries(RANK_TO_SALARY)) {
+  if (!SALARY_TO_RANKS[sal]) SALARY_TO_RANKS[sal] = []
+  SALARY_TO_RANKS[sal].push(rank)
+}
+
+const SALARY_LEVELS = [
+  'ส.3',
+  'ป.1','ป.2','ป.3','ป.3(พ)',
+  'ประจำ (ป.)',
+  'น.1','น.2','น.3','น.4','น.5','น.6','น.7','น.8','น.9','น.10',
+  'ประจำ (น.)',
+]
+
+function rankToSalary(rank) {
+  return RANK_TO_SALARY[rank] || rank || '—'
+}
+
 // ── status formatter ────────────────────────────────────
 function statusFormatter(cell) {
   const v = cell.getValue()
@@ -55,11 +89,11 @@ export default function TabulatorView({ positions, updatePosition, deletePositio
   useEffect(() => {
     if (!elRef.current) return
 
-    // build unique ranks: RANK_LIST (all branches) + any extra from data
+    // salary level filter values
+    const salaryFilterValues = { '': '— ทั้งหมด —', ...Object.fromEntries(SALARY_LEVELS.map(s => [s, s])) }
+    // editor: show all ranks grouped by salary level
     const dataRanks = positions.map(p => p.rank_req).filter(Boolean)
     const allRanks = [...new Set([...RANK_LIST, ...dataRanks])]
-    const rankFilterValues = { '': '— ทั้งหมด —', ...Object.fromEntries(allRanks.map(r => [r, r])) }
-    const rankEditorValues = allRanks
 
     const table = new Tabulator(elRef.current, {
       data: positions.map(p => ({ ...p })),
@@ -98,11 +132,20 @@ export default function TabulatorView({ positions, updatePosition, deletePositio
         { title: 'รหัสตำแหน่ง',    field: 'pos_code',  width: 130, editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'ค้นหา...' },
         { title: 'หน่วย/ตำแหน่ง',  field: 'position',  width: 210, editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'ค้นหา...' },
         {
-          title: 'อัตรา', field: 'rank_req', width: 90,
+          title: 'ระดับเงินเดือน', field: 'rank_req', width: 120,
           editor: 'list',
-          editorParams: { values: rankEditorValues, autocomplete: true, listOnEmpty: true, freetext: true },
+          editorParams: { values: allRanks, autocomplete: true, listOnEmpty: true, freetext: true },
+          formatter: (cell) => {
+            const v = cell.getValue()
+            return `<span title="${v || ''}">${rankToSalary(v)}</span>`
+          },
           headerFilter: 'list',
-          headerFilterParams: { values: rankFilterValues },
+          headerFilterParams: { values: salaryFilterValues },
+          headerFilterFunc: (headerValue, rowValue) => {
+            if (!headerValue) return true
+            const ranks = SALARY_TO_RANKS[headerValue] || []
+            return ranks.includes(rowValue)
+          },
         },
         { title: 'ชื่อ-สกุล',   field: 'name',       width: 190, editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'ค้นหา...' },
         { title: 'เลขประจำตัว', field: 'person_id',  width: 115, editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'ค้นหา...' },
