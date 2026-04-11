@@ -27,6 +27,8 @@ jobs:
         working-directory: personnel-app
       - run: npx vite build
         working-directory: personnel-app
+        env:
+          VITE_SHEET_API_URL: ${{ secrets.VITE_SHEET_API_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: personnel-app/dist
