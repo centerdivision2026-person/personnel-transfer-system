@@ -64,18 +64,18 @@ for (const [rank, sal] of Object.entries(RANK_TO_SALARY)) {
 
 // ระดับเงินเดือนตามตารางเงินเดือน พร้อมรายละเอียดชั้นยศ
 const SALARY_LEVELS = [
-  { value: 'ป.1',  label: 'ป.1 — ส.ต. ถึง ส.อ.' },
-  { value: 'ป.2',  label: 'ป.2 — จ.ส.ต. ถึง จ.ส.อ.' },
-  { value: 'ป.3',  label: 'ป.3 — จ.ส.อ.(พ)' },
-  { value: 'ประจำ (ป.)', label: 'ประจำ (ป.) — ประทวน' },
-  { value: 'น.1',  label: 'น.1 — ร.ต. ถึง ร.อ.' },
-  { value: 'น.2',  label: 'น.2 — พ.ต. / นาวาตรี' },
-  { value: 'น.3',  label: 'น.3 — พ.ท. / นาวาโท' },
-  { value: 'น.4',  label: 'น.4 — พ.อ. / นาวาเอก' },
-  { value: 'น.5',  label: 'น.5 — พ.อ.(พ) / น.อ.(พ) / น.อ.อ.(พ)' },
-  { value: 'น.6',  label: 'น.6 — พล.ต. / พล.ร.ต. / พล.อ.ต.' },
-  { value: 'น.7',  label: 'น.7 — พล.ท. / พล.อ. / พล.ร.ท. / พล.ร.อ.' },
-  { value: 'ประจำ (น.)', label: 'ประจำ (น.) — สัญญาบัตร' },
+  { value: 'ป.1',  label: 'ป.1' },
+  { value: 'ป.2',  label: 'ป.2' },
+  { value: 'ป.3',  label: 'ป.3' },
+  { value: 'ประจำ (ป.)', label: 'ประจำ (ป.)' },
+  { value: 'น.1',  label: 'น.1' },
+  { value: 'น.2',  label: 'น.2' },
+  { value: 'น.3',  label: 'น.3' },
+  { value: 'น.4',  label: 'น.4' },
+  { value: 'น.5',  label: 'น.5' },
+  { value: 'น.6',  label: 'น.6' },
+  { value: 'น.7',  label: 'น.7' },
+  { value: 'ประจำ (น.)', label: 'ประจำ (น.)' },
 ]
 
 function rankToSalary(rank) {
