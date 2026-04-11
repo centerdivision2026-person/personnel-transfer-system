@@ -439,12 +439,13 @@ function RuleModal({ rule, onSave, onClose, uniqueRanks, uniqueBranches }) {
 // ══════════════════════════════════════════════════════
 function VacantSuggestions({ pos, conditions, positions, transferMap, onAssign, sortType = 'fit' }) {
   const top3 = useMemo(() => {
+    const posLevel = RANK_LEVEL[pos.rank_req] || 0
     return positions
-      .filter(p =>
-        p.name && p.status === '1' &&
-        p._id !== pos._id &&
-        !transferMap.outgoing[p._id]   // ยังไม่ถูกนำออก
-      )
+      .filter(p => {
+        if (!p.name || p.status !== '1' || p._id === pos._id || transferMap.outgoing[p._id]) return false
+        const pLevel = RANK_LEVEL[p.rank_req] || 0
+        return pLevel < posLevel  // เฉพาะยศต่ำกว่าตำแหน่ง
+      })
       .map(p => ({
         ...p,
         _viols: evalConditions(conditions, p, pos),
@@ -1053,8 +1054,13 @@ export default function App() {
   // ── candidates for panel ───────────────────────────────────────────────────
   const candidates = useMemo(() => {
     if (!candidatePos) return []
+    const posLevel = RANK_LEVEL[candidatePos.rank_req] || 0
     return positions
-      .filter(p => p.name && p.status === '1' && p._id !== candidatePos._id)
+      .filter(p => {
+        if (!p.name || p.status !== '1' || p._id === candidatePos._id) return false
+        const pLevel = RANK_LEVEL[p.rank_req] || 0
+        return pLevel < posLevel  // เฉพาะยศต่ำกว่าตำแหน่ง
+      })
       .map(p => {
         const viols = evalConditions(conditions, p, candidatePos)
         return { ...p, _viols: viols, _score: matchScore(p, candidatePos, sortType) + viols.length * 20 }
